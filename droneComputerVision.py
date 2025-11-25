@@ -1,10 +1,12 @@
 import cv2
 import numpy as np
 
-# connects to camera
+#connects to camera
 cam = cv2.VideoCapture(0)
-# Defines the range of colors that should be detected (in this case, shades of red)
-colorThreshold = 143
+#Defines the range of colors that should be detected in the green-red spectrum (in this case, shades of red)
+redThreshold = 163
+#Defines the range of colors that should be detected in the blue-yellow spectrum (in this case, not shades of blue)
+blueThreshold = 136
 #Minimum area of a detected object for it to be circled
 minArea = 6000
 largestShape = None
@@ -19,16 +21,22 @@ while True:
     #blurs the camera input to reduce noise and glare
     blurredFrame = cv2.GaussianBlur(frame, (7,7), 0)
 
-    # Converts to LAB color space (better for color detection)
+    #Converts to LAB color space (better for color detection)
     lab = cv2.cvtColor(blurredFrame, cv2.COLOR_BGR2LAB)
 
-    #splits the LAB channels and assigns A (red and green detection) to a variable
-    _, A, _ = cv2.split(lab)
+    #splits the LAB channels and assigns A (red and green detection) and B (blue and yellow detection) to variables
+    _, A, B = cv2.split(lab)
 
-    # Creates a mask to show where red is detected
-    _, mask = cv2.threshold(A, colorThreshold, 255, cv2.THRESH_BINARY)
+    #Creates a mask to show where red is detected
+    _, maskA = cv2.threshold(A, redThreshold, 255, cv2.THRESH_BINARY)
+    
+    #Creates a mask to show where blue isn't detected
+    _, maskB = cv2.threshold(B, blueThreshold, 255, cv2.THRESH_BINARY)
 
-    #gets the shapes(contours) of red detected by the mask, using the basic contour finding mode and method
+    #Combines the two masks to detect red and exclude blue
+    mask = cv2.bitwise_and(maskA, maskB)
+
+    #gets the shapes/contours of red detected by the mask, using the basic contour finding mode and method
     shapes, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     #reduces noise
@@ -37,25 +45,22 @@ while True:
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
     if len(shapes) > 0:
-        largestShape = max(shapes, key=cv2.contourArea)
+        for s in shapes:
+            if cv2.contourArea(s) >= minArea:
 
-    if largestShape is not None:
-        if cv2.contourArea(largestShape) >= minArea:
+                #returns a dictionary of moments
+                moment = cv2.moments(s)
 
-            #returns a dictionary of moments
-            moment = cv2.moments(largestShape)
+                if moment["m00"] != 0:
+                    #x coordinate of center of detected object
+                    x = int(moment["m10"] / moment["m00"])
+                    #y coordinate of center of detected object
+                    y = int(moment["m01"] / moment["m00"])
 
-            if moment["m00"] != 0:
-                #x coordinate of center of detected object
-                x = int(moment["m10"] / moment["m00"])
-                #y coordinate of center of detected object
-                y = int(moment["m01"] / moment["m00"])
+                    #circles the detected object with a circle of radius 6, color green, and thickness of 6
+                    cv2.circle(frame, (x, y), 100, (0, 255, 0), 7)
 
-                #circles the detected object with a circle of radius 6, color green, and thickness of 6
-                cv2.circle(frame, (x, y), 100, (0, 255, 0), 7)
-                cv2.circle(mask, (x, y), 100, (0, 255, 0), 7)
-
-    # Shows the normal camera feed and the mask
+    #Shows the normal camera feed and the mask
     cv2.imshow("camera", frame)
     cv2.imshow("red detection", mask)
 
