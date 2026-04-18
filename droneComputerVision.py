@@ -3,15 +3,15 @@ import numpy as np
 
 #connects to camera
 cam = cv2.VideoCapture(0)
-#Defines the range of colors that should be detected in the green-red spectrum (in this case, shades of red)
-redThreshold = 163
-#Defines the range of colors that should be detected in the blue-yellow spectrum (in this case, not shades of blue)
+#Defines the range of colors that should be detected in the green-red spectrum (in this case, shades of red) 163
+redThreshold = 140
+#Defines the range of colors that should be detected in the blue-yellow spectrum (in this case, not shades of blue) 136
 blueThreshold = 136
 #Minimum area of a detected object for it to be circled
-minArea = 6000
+minArea = 3500
 largestShape = None
 #Used for reducing noise and filling holes in object detection
-kernel = np.ones((3, 3), np.uint8)
+kernel = np.ones((1, 1), np.uint8)
 
 #Runs the code inside continuously
 while True:
@@ -19,7 +19,7 @@ while True:
     _, frame = cam.read()
 
     #blurs the camera input to reduce noise and glare
-    blurredFrame = cv2.GaussianBlur(frame, (7,7), 0)
+    blurredFrame = cv2.GaussianBlur(frame, (9, 9), 0)
 
     #Converts to LAB color space (better for color detection)
     lab = cv2.cvtColor(blurredFrame, cv2.COLOR_BGR2LAB)
@@ -36,13 +36,13 @@ while True:
     #Combines the two masks to detect red and exclude blue
     mask = cv2.bitwise_and(maskA, maskB)
 
-    #gets the shapes/contours of red detected by the mask, using the basic contour finding mode and method
-    shapes, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
     #reduces noise
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     #fills holes in detected objects
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    #gets the shapes/contours of red detected by the mask, using the basic contour finding mode and method
+    shapes, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(shapes) > 0:
         for s in shapes:
